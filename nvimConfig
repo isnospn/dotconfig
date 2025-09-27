@@ -1,0 +1,322 @@
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not vim.loop.fs_stat(lazypath) then
+  vim.fn.system({
+    "git",
+    "clone",
+    "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim.git",
+    lazypath,
+  })
+end
+vim.opt.rtp:prepend(lazypath)
+
+require("lazy").setup({
+  -- list your plugins here
+  -- Mason (LSP/DAP manager)
+  "williamboman/mason.nvim",
+  "williamboman/mason-lspconfig.nvim",
+  "neovim/nvim-lspconfig",
+
+  -- Completion & snippets
+  "hrsh7th/nvim-cmp",
+  "hrsh7th/cmp-nvim-lsp",
+  "L3MON4D3/LuaSnip",
+  "saadparwaiz1/cmp_luasnip",
+
+  -- Syntax highlighting
+  { "nvim-treesitter/nvim-treesitter", build = ":TSUpdate" },
+
+  -- Debugging
+  "mfussenegger/nvim-dap",
+  "rcarriga/nvim-dap-ui",
+
+  -- Tabs / UI
+  "akinsho/bufferline.nvim",
+  "nvim-lualine/lualine.nvim",
+  "nvim-tree/nvim-web-devicons",
+  "lukas-reineke/indent-blankline.nvim",
+
+  -- File Explorer
+  "nvim-tree/nvim-tree.lua",
+
+  -- Utility
+  "nvim-lua/plenary.nvim",
+  "nvim-neotest/nvim-nio",
+  "akinsho/toggleterm.nvim",
+
+  --Themes
+  "ribru17/bamboo.nvim",
+  "Mofiqul/dracula.nvim",
+  "rose-pine/neovim",
+  "maxmx03/fluoromachine.nvim",
+})
+
+
+-----------------------------------------------
+----- SETUP PLUGINS----------
+-----------------------------------------------
+
+
+-- wrap all plugin configs in one function
+local function setup_plugins()
+  -- Mason + LSP
+  -- Mason + LSP
+require("mason").setup()
+require("mason-lspconfig").setup {
+}
+
+-- Use new vim.lsp.config API
+
+  -- Completion
+  local cmp = require("cmp")
+  local luasnip = require("luasnip")
+  cmp.setup {
+    snippet = {
+      expand = function(args) luasnip.lsp_expand(args.body) end,
+    },
+    mapping = cmp.mapping.preset.insert({
+      ["<CR>"] = cmp.mapping.confirm({ select = true }),
+      ["<Tab>"] = cmp.mapping.select_next_item(),
+      ["<S-Tab>"] = cmp.mapping.select_prev_item(),
+    }),
+    sources = {
+      { name = "nvim_lsp" },
+      { name = "luasnip" },
+    },
+  }
+
+  -- UI
+  require("bufferline").setup()
+  require("lualine").setup()
+  require("toggleterm").setup {
+  size = 20,
+  open_mapping = [[<C-\>]], -- toggle with Ctrl+\
+  shade_terminals = true,
+  shading_factor = 2,
+  start_in_insert = true,
+  insert_mappings = true,
+  persist_size = true,
+  direction = "horizontal", --| "vertical" | "float" | "tab"
+  float_opts = {
+    border = "curved",
+  },
+  }
+  require("ibl").setup {
+  indent = { char = "⋮" }, -- character for the indent line
+  scope = { enabled = true }, -- highlight current scope
+  }
+  vim.api.nvim_set_hl(0, "IblScope", { fg = "#ff8800", bold = true })
+
+  -- File Explorer
+  require("nvim-tree").setup()
+
+  -- Debugging
+  require("dapui").setup()
+  local dap = require("dap")
+local dapui = require("dapui")
+
+dapui.setup()
+
+-- Debugging
+local dap = require("dap")
+local dapui = require("dapui")
+
+dapui.setup()
+
+-- Auto-open/close dap-ui when debugging starts/stops
+dap.listeners.after.event_initialized["dapui_config"] = function()
+  dapui.open()
+end
+dap.listeners.before.event_terminated["dapui_config"] = function()
+  dapui.close()
+end
+dap.listeners.before.event_exited["dapui_config"] = function()
+  dapui.close()
+end
+
+-- === Language-specific configs ===
+
+-- Python (needs debugpy)
+dap.adapters.python = {
+  type = "executable",
+  command = "/home/2sys5/.local/share/pipx/venvs/debugpy/bin/python",
+  args = { "-m", "debugpy.adapter" },
+}
+dap.configurations.python = {
+  {
+    type = "python",
+    request = "launch",
+    name = "Launch file",
+    program = "${file}",
+    console = "integratedTerminal",
+  },
+}
+
+-- C / C++ / Rust (needs codelldb)
+dap.adapters.codelldb = {
+  type = "server",
+  port = "${port}",
+  executable = {
+    command = vim.fn.stdpath("data") .. "/mason/bin/codelldb",
+    args = { "--port", "${port}" },
+  },
+}
+dap.configurations.cpp = {
+  {
+    name = "Launch file",
+    type = "codelldb",
+    request = "launch",
+    program = function()
+      return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+    end,
+    cwd = "${workspaceFolder}",
+    stopOnEntry = false,
+    args = {},
+  },
+}
+dap.configurations.c = dap.configurations.cpp
+dap.configurations.rust = dap.configurations.cpp  
+
+--print("end OF MY SETup")
+end
+--print("AFTER SETUP")
+-- call the function
+setup_plugins()
+
+----------------------------------------------
+-------------UI---------------
+----------------------------------------------
+--------Blinking cursor
+vim.opt.guicursor = {
+  "n-v-c:block-Cursor/lCursor-blinkwait700-blinkon400-blinkoff250",
+  "i-ci:ver25-Cursor/lCursor-blinkwait700-blinkon400-blinkoff250",
+  "r-cr:hor20-Cursor/lCursor-blinkwait700-blinkon400-blinkoff250",
+}
+-- Bufferline (tabs)
+require("bufferline").setup {
+  options = {
+    numbers = "none", -- "buffer_id", "ordinal", etc.
+    diagnostics = "nvim_lsp", -- show LSP errors/warnings in tabs
+    show_buffer_close_icons = false,
+    show_close_icon = false,
+    separator_style = "slant", -- "slant", "thick", "thin"
+  }
+}
+
+-- Lualine (statusline)
+require("lualine").setup {
+  options = {
+    theme = "auto",  -- picks based on colorscheme
+    section_separators = { left = "", right = "" },  -- arrows
+    component_separators = { left = "", right = "" }, -- thin separators
+    icons_enabled = true,
+  },
+}
+
+-- NvimTree (file explorer)
+require("nvim-tree").setup {
+  view = {
+    width = 30,
+    side = "left",
+  },
+  renderer = {
+    group_empty = true,
+    highlight_git = true,
+    icons = {
+      show = {
+        file = true,
+        folder = true,
+        folder_arrow = true,
+        git = true,
+      },
+    },
+  },
+  filters = {
+    dotfiles = false,
+  },
+}
+
+-- Line numbers
+vim.opt.number = true         -- absolute line numbers
+vim.opt.relativenumber = true -- relative numbers (good for motions)
+
+-- Tabs & indentation
+vim.opt.tabstop = 2           -- number of spaces a <Tab> counts for
+vim.opt.shiftwidth = 2        -- number of spaces for autoindent
+vim.opt.expandtab = true      -- convert tabs to spaces
+vim.opt.smartindent = true    -- smart autoindenting
+
+-- Search
+vim.opt.ignorecase = true     -- case-insensitive search
+vim.opt.smartcase = true      -- case-sensitive if uppercase present
+vim.opt.hlsearch = true       -- highlight search matches
+vim.opt.incsearch = true      -- show matches while typing
+
+-- UI behaviour
+vim.opt.cursorline = true     -- highlight current line
+vim.opt.termguicolors = true  -- enable 24-bit RGB colors
+vim.opt.wrap = false          -- don’t wrap long lines
+vim.opt.scrolloff = 8         -- keep 8 lines visible above/below cursor
+vim.opt.signcolumn = "yes"    -- always show sign column (for LSP, git, etc.)
+vim.opt.showmode = false      -- don’t show mode (handled by lualine)
+
+-- Splits
+vim.opt.splitbelow = true     -- open horizontal splits below
+vim.opt.splitright = true     -- open vertical splits to the right
+
+-- Clipboard
+vim.opt.clipboard = "unnamedplus" -- use system clipboard
+-- Visual settings
+vim.opt.termguicolors = true                       -- Enable 24-bit colors
+vim.opt.signcolumn = "yes"                         -- Always show sign column
+vim.opt.colorcolumn = "100"                        -- Show column at 100 characters
+vim.opt.pumheight = 40                             -- Popup menu height 
+vim.opt.pumblend = 10                              -- Popup menu transparency
+
+-- 4. Autocmd for transparency (goes here)
+vim.api.nvim_create_autocmd("ColorScheme", {
+  callback = function()
+    -- Main editor
+    vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
+    vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
+    vim.api.nvim_set_hl(0, "SignColumn", { bg = "none" })
+    vim.api.nvim_set_hl(0, "LineNr", { bg = "none" })
+    vim.api.nvim_set_hl(0, "CursorLineNr", { bg = "none" })
+
+    -- Bufferline / tabline
+    ---vim.api.nvim_set_hl(0, "BufferLineFill", { bg = "#2d302e" })
+    ---vim.api.nvim_set_hl(0, "BufferLineBackground", { bg = "#2d302e" })
+    ---vim.api.nvim_set_hl(0, "BufferLineSeparator", { bg = "#2d302e" })
+    ---vim.api.nvim_set_hl(0, "BufferLineSeparatorSelected", { bg = "#2d302e" })
+    ---vim.api.nvim_set_hl(0, "BufferLineSeparatorVisible", { bg = "#2d302e" })
+
+    -- Tabline (in case theme links bufferline highlights)
+    ---vim.api.nvim_set_hl(0, "TabLineFill", { bg = "none" })
+    ---vim.api.nvim_set_hl(0, "TabLine", { bg = "none" })
+    ---vim.api.nvim_set_hl(0, "TabLineSel", { bg = "none" })
+    ---vim.api.nvim_set_hl(0, "TabLineSeparator", { bg = "none" })
+  end,
+})
+
+
+-- Colorscheme: TokyoNight
+vim.cmd.colorscheme(
+  --"unokai"
+  "dracula"
+  --"bamboo"
+  --"rose-pine-moon"
+  --"sorbet"
+  --"fluoromachine"
+)
+
+-- Keymap to toggle file explorer
+vim.keymap.set("n", "<leader>e", ":NvimTreeToggle<CR>", { noremap = true, silent = true })
+vim.keymap.set("n", "<F5>", function() require("dap").continue() end)
+vim.keymap.set("n", "<F10>", function() require("dap").step_over() end)
+vim.keymap.set("n", "<F11>", function() require("dap").step_into() end)
+vim.keymap.set("n", "<F12>", function() require("dap").step_out() end)
+vim.keymap.set("n", "<leader>b", function() require("dap").toggle_breakpoint() end)
+vim.keymap.set("n", "<leader>B", function()
+  require("dap").set_breakpoint(vim.fn.input("Breakpoint condition: "))
+end)
+
